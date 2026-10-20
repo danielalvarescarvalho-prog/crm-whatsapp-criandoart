@@ -9,7 +9,13 @@ const bcrypt = require('bcryptjs');
 // Conexão preguiçosa: só conecta quando a primeira query rodar.
 // Aceita POSTGRES_URL (padrão Vercel) ou DATABASE_URL.
 // fullResults: true → resultados no formato { rows, ... } (estilo node-postgres).
-const sql = neon(process.env.POSTGRES_URL || process.env.DATABASE_URL || 'postgres://localhost:5432/crm', {
+const DATABASE_URL =
+  process.env.POSTGRES_URL ||
+  process.env.DATABASE_URL ||
+  process.env.STORAGE_URL ||
+  process.env.NEON_DATABASE_URL ||
+  'postgres://localhost:5432/crm';
+const sql = neon(DATABASE_URL, {
   fullResults: true,
 });
 
