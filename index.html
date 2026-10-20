@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM CriandoArt — WhatsApp</title>
+<style>
+/* ============================================================
+   CRM CriandoArt — tema escuro com laranja #FF6A00
+   ============================================================ */
+:root {
+  --bg: #0d0d0f;
+  --bg2: #141417;
+  --bg3: #1c1c21;
+  --border: #2a2a31;
+  --text: #f2f2f4;
+  --muted: #9a9aa5;
+  --accent: #FF6A00;
+  --accent-dark: #cc5400;
+  --green: #25d366;
+  --danger: #ff4d4d;
+  --radius: 10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg); color: var(--text);
+  height: 100vh; overflow: hidden;
+}
+.hidden { display: none !important; }
+.muted { color: var(--muted); }
+.muted-sm { color: var(--muted); font-size: 12px; font-weight: normal; }
+.error { color: var(--danger); font-size: 13px; margin: 6px 0; }
+
+/* ---------- Login ---------- */
+.login-wrap {
+  height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(600px 400px at 50% 30%, #1e1410, var(--bg));
+}
+.login-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 14px; padding: 36px; width: 360px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+.brand { font-size: 22px; margin-bottom: 4px; }
+.brand-dot {
+  display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--accent); margin-right: 8px;
+}
+.login-sub { color: var(--muted); margin-bottom: 22px; font-size: 14px; }
+label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+input, textarea, select {
+  width: 100%; margin-top: 5px; padding: 10px 12px;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 14px; font-family: inherit;
+}
+input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
+input:disabled { opacity: .6; }
+textarea { resize: vertical; }
+
+/* ---------- Botões ---------- */
+.btn {
+  background: var(--bg3); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 16px; font-size: 14px; cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn.primary:hover { background: var(--accent-dark); }
+.btn.danger { border-color: var(--danger); color: var(--danger); }
+.link-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; }
+.link-btn:hover { color: var(--accent); }
+.icon-btn { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+.icon-btn:hover { color: var(--text); }
+.badge {
+  background: var(--accent); color: #fff; border-radius: 12px;
+  font-size: 11px; padding: 1px 8px; margin-left: 4px;
+}
+
+/* ---------- App layout ---------- */
+#app-view { display: flex; height: 100vh; }
+.sidebar {
+  width: 220px; background: var(--bg2); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; padding: 20px 14px; flex-shrink: 0;
+}
+.sidebar .brand { font-size: 18px; margin-bottom: 24px; padding: 0 6px; }
+.sidebar nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.nav-btn {
+  background: none; border: none; color: var(--muted); text-align: left;
+  padding: 11px 12px; border-radius: 8px; font-size: 15px; cursor: pointer;
+}
+.nav-btn:hover { background: var(--bg3); color: var(--text); }
+.nav-btn.active { background: var(--bg3); color: var(--accent); font-weight: 600; }
+.sidebar-foot { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); padding: 0 6px; }
+.main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.view { flex: 1; overflow: hidden; display: flex; flex-direction: column; padding: 24px; }
+.view-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.view-head h2 { font-size: 20px; }
+
+/* ---------- Kanban ---------- */
+.kanban { display: flex; gap: 14px; overflow-x: auto; flex: 1; padding-bottom: 10px; }
+.kcol {
+  min-width: 270px; max-width: 270px; background: var(--bg2);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  display: flex; flex-direction: column; max-height: 100%;
+}
+.kcol-head {
+  padding: 12px 14px; font-weight: 600; font-size: 14px;
+  border-bottom: 1px solid var(--border); display: flex; justify-content: space-between;
+}
+.kcol-head .count { color: var(--muted); font-weight: normal; font-size: 12px; }
+.kcol-body { padding: 10px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.kcol.dragover { border-color: var(--accent); background: #1a1410; }
+.kcard {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; cursor: grab; font-size: 14px;
+}
+.kcard:hover { border-color: var(--accent); }
+.kcard.dragging { opacity: .4; }
+.kcard .kname { font-weight: 600; margin-bottom: 2px; }
+.kcard .kphone { color: var(--muted); font-size: 12px; }
+.kcard .kpreview { color: var(--muted); font-size: 12px; margin-top: 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kcard .kappt { color: var(--accent); font-size: 12px; margin-top: 4px; }
+
+/* ---------- Inbox ---------- */
+.inbox-wrap { display: flex; gap: 14px; flex: 1; overflow: hidden; }
+.inbox-list {
+  width: 320px; flex-shrink: 0; background: var(--bg2);
+  border: 1px solid var(--border); border-radius: var(--radius); overflow-y: auto;
+}
+.conv {
+  padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.conv:hover { background: var(--bg3); }
+.conv.active { background: var(--bg3); border-left: 3px solid var(--accent); }
+.conv .cname { font-weight: 600; font-size: 14px; }
+.conv .cprev { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+.conv .ctime { color: var(--muted); font-size: 11px; float: right; }
+.inbox-thread { flex: 1; display: flex; flex-direction: column; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.thread-head { padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600; }
+.thread { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.msg {
+  max-width: 70%; padding: 9px 13px; border-radius: 12px; font-size: 14px;
+  word-wrap: break-word; line-height: 1.4;
+}
+.msg .mtime { display: block; font-size: 10px; color: var(--muted); margin-top: 4px; text-align: right; }
+.msg.in { background: var(--bg3); align-self: flex-start; border-bottom-left-radius: 3px; }
+.msg.out { background: #0e3b2e; align-self: flex-end; border-bottom-right-radius: 3px; }
+.reply-box { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; flex-wrap: wrap; }
+.reply-box textarea { flex: 1; min-width: 200px; }
+.tpl-row { display: flex; gap: 6px; flex-wrap: wrap; width: 100%; margin-bottom: 4px; }
+.tpl-chip {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 14px;
+  padding: 4px 12px; font-size: 12px; cursor: pointer; color: var(--muted);
+}
+.tpl-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ---------- Dashboard ---------- */
+.dash-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.dash-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.dash-card h3 { font-size: 13px; color: var(--muted); margin-bottom: 8px; font-weight: normal; }
+.dash-big { font-size: 32px; font-weight: 700; color: var(--accent); }
+.dash-num { font-size: 32px; font-weight: 700; }
+.dash-row { display: flex; gap: 12px; }
+.dash-card.grow { flex: 1; }
+.follow-item {
+  padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.follow-item:last-child { border-bottom: none; }
+
+/* ---------- WhatsApp ---------- */
+.wa-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; max-width: 480px; text-align: center; }
+.wa-status { font-size: 18px; margin-bottom: 16px; }
+.wa-status.ok { color: var(--green); }
+.wa-qr { border-radius: 8px; margin: 10px auto; display: block; background: #fff; padding: 8px; }
+.wa-hint { margin-top: 16px; font-size: 13px; line-height: 1.5; }
+
+/* ---------- Modelos ---------- */
+.tpl-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.tpl-item { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.tpl-item h4 { margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+.tpl-item p { color: var(--muted); font-size: 14px; white-space: pre-wrap; }
+.tpl-item .actions { display: flex; gap: 6px; }
+
+/* ---------- Painel lateral ---------- */
+.panel {
+  width: 420px; flex-shrink: 0; background: var(--bg2); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.panel-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.panel-body { padding: 20px; overflow-y: auto; flex: 1; }
+.panel-body hr { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+.panel-body h4 { margin-bottom: 10px; }
+.field-row { display: flex; gap: 10px; }
+.field-row label { flex: 1; }
+.panel .thread { max-height: 300px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; }
+.panel .reply-box { border: none; padding: 0; }
+
+/* ---------- Modal ---------- */
+.modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  display: flex; align-items: center; justify-content: center; z-index: 50;
+}
+.modal-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 24px; width: 440px; max-width: 90vw; }
+.modal-card h3 { margin-bottom: 14px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+</style>
+</head>
+<body>
+
+<!-- ============ TELA DE LOGIN ============ -->
+<div id="login-view" class="login-wrap">
+  <div class="login-card">
+    <div class="brand"><span class="brand-dot"></span>CRM <b>CriandoArt</b></div>
+    <p class="login-sub">Gestão de conversas do WhatsApp</p>
+    <form id="login-form">
+      <label>Usuário
+        <input type="text" id="login-user" autocomplete="username" placeholder="daniel" required>
+      </label>
+      <label>Senha
+        <input type="password" id="login-pass" autocomplete="current-password" placeholder="••••••••" required>
+      </label>
+      <p id="login-error" class="error hidden"></p>
+      <button type="submit" class="btn primary">Entrar</button>
+    </form>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app-view" class="hidden">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-dot"></span>CRM <b>CriandoArt</b></div>
+    <nav>
+      <button data-view="kanban" class="nav-btn active">📋 Kanban</button>
+      <button data-view="inbox" class="nav-btn">💬 Inbox <span id="nav-inbox-badge" class="badge hidden"></span></button>
+      <button data-view="dashboard" class="nav-btn">📊 Dashboard</button>
+      <button data-view="whatsapp" class="nav-btn">📱 WhatsApp</button>
+      <button data-view="templates" class="nav-btn">📝 Modelos</button>
+    </nav>
+    <div class="sidebar-foot">
+      <span id="user-label"></span>
+      <button id="btn-pass" class="link-btn" title="Trocar senha">🔑 senha</button>
+      <button id="btn-logout" class="link-btn">Sair</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- KANBAN -->
+    <section id="view-kanban" class="view">
+      <div class="view-head">
+        <h2>Funil de atendimento</h2>
+        <button id="btn-new-contact" class="btn">+ Novo contato</button>
+      </div>
+      <div id="kanban-board" class="kanban"></div>
+    </section>
+
+    <!-- INBOX -->
+    <section id="view-inbox" class="view hidden">
+      <div class="view-head"><h2>Conversas</h2></div>
+      <div class="inbox-wrap">
+        <div id="inbox-list" class="inbox-list"></div>
+        <div class="inbox-thread">
+          <div id="inbox-thread-head" class="thread-head"><span class="muted">Selecione uma conversa</span></div>
+          <div id="inbox-thread" class="thread"></div>
+          <div id="inbox-reply" class="reply-box hidden">
+            <div id="inbox-templates" class="tpl-row"></div>
+            <textarea id="inbox-input" rows="2" placeholder="Digite a mensagem... (Enter envia)"></textarea>
+            <button id="inbox-send" class="btn primary">Enviar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="view hidden">
+      <div class="view-head"><h2>Dashboard</h2><button id="btn-refresh-dash" class="btn">↻ Atualizar</button></div>
+      <div id="dash-stages" class="dash-cards"></div>
+      <div class="dash-row">
+        <div class="dash-card">
+          <h3>⏱ Tempo médio da 1ª resposta</h3>
+          <p id="dash-resp" class="dash-big">—</p>
+        </div>
+        <div class="dash-card grow">
+          <h3>🔔 Follow-ups pendentes <span class="muted-sm">(em atendimento/qualificado, sem resposta nossa há 24h)</span></h3>
+          <div id="dash-followups"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHATSAPP -->
+    <section id="view-whatsapp" class="view hidden">
+      <div class="view-head"><h2>Conexão WhatsApp</h2></div>
+      <div class="wa-card">
+        <p id="wa-status" class="wa-status">Verificando...</p>
+        <img id="wa-qr" class="wa-qr hidden" alt="QR Code do WhatsApp">
+        <p class="muted wa-hint">Conexão via API oficial da Meta (Cloud API). O envio usa o número dedicado configurado nas variáveis de ambiente; o recebimento chega pelo webhook.</p>
+      </div>
+    </section>
+
+    <!-- MODELOS -->
+    <section id="view-templates" class="view hidden">
+      <div class="view-head"><h2>Modelos de mensagem</h2><button id="btn-new-tpl" class="btn">+ Novo modelo</button></div>
+      <div id="tpl-list" class="tpl-list"></div>
+    </section>
+  </main>
+
+  <!-- PAINEL LATERAL DO CONTATO (Kanban) -->
+  <div id="contact-panel" class="panel hidden">
+    <div class="panel-head">
+      <h3 id="panel-name">Contato</h3>
+      <button id="panel-close" class="icon-btn">✕</button>
+    </div>
+    <div class="panel-body">
+      <div class="field-row">
+        <label>Nome<input type="text" id="panel-contact-name"></label>
+        <label>Telefone<input type="text" id="panel-contact-phone" disabled></label>
+      </div>
+      <div class="field-row">
+        <label>Etapa<select id="panel-stage"></select></label>
+        <label>Agendamento<input type="datetime-local" id="panel-appointment"></label>
+      </div>
+      <label>Tags (separadas por vírgula)<input type="text" id="panel-tags" placeholder="ex: dentista, quente"></label>
+      <label>Notas<textarea id="panel-notes" rows="3"></textarea></label>
+      <button id="panel-save" class="btn primary">Salvar dados</button>
+      <hr>
+      <h4>Conversa</h4>
+      <div id="panel-thread" class="thread"></div>
+      <div class="tpl-row" id="panel-templates"></div>
+      <div class="reply-box">
+        <textarea id="panel-input" rows="2" placeholder="Digite a mensagem... (Enter envia)"></textarea>
+        <button id="panel-send" class="btn primary">Enviar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal genérico -->
+<div id="modal" class="modal hidden">
+  <div class="modal-card">
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+    <div class="modal-actions">
+      <button id="modal-cancel" class="btn">Cancelar</button>
+      <button id="modal-ok" class="btn primary">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CRM CriandoArt — frontend vanilla
+// ============================================================
+const $ = (s) => document.querySelector(s);
+
+// ---------- API helper ----------
+async function api(method, url, body) {
+  const r = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (r.status === 401) { showLogin(); throw new Error('sessão expirada'); }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'erro na requisição');
+  return data;
+}
+
+// ---------- Estado ----------
+const state = {
+  user: null,
+  stages: [],
+  contacts: [],
+  templates: [],
+  activeContactId: null,   // painel do kanban
+  inboxContactId: null,    // conversa aberta na inbox
+  waTimer: null,
+  inboxTimer: null,
+};
+
+// ---------- Login ----------
+function showLogin() {
+  $('#login-view').classList.remove('hidden');
+  $('#app-view').classList.add('hidden');
+  state.user = null;
+}
+function showApp(username) {
+  $('#login-view').classList.add('hidden');
+  $('#app-view').classList.remove('hidden');
+  $('#user-label').textContent = '@' + username;
+  state.user = username;
+}
+$('#login-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('#login-error').classList.add('hidden');
+  try {
+    const r = await api('POST', '/api/login', {
+      username: $('#login-user').value,
+      password: $('#login-pass').value,
+    });
+    $('#login-pass').value = '';
+    showApp(r.username);
+    await boot();
+  } catch (err) {
+    const el = $('#login-error');
+    el.textContent = err.message;
+    el.classList.remove('hidden');
+  }
+});
+$('#btn-logout').addEventListener('click', async () => {
+  await api('POST', '/api/logout').catch(() => {});
+  showLogin();
+});
+$('#btn-pass').addEventListener('click', () => {
+  openModal('Trocar senha', `
+    <label>Senha atual<input type="password" id="m-cur"></label>
+    <label>Nova senha (mín. 6 caracteres)<input type="password" id="m-new"></label>
+    <p id="m-err" class="error hidden"></p>
+  `, async () => {
+    try {
+      await api('POST', '/api/account/password', {
+        current: $('#m-cur').value, next: $('#m-new').value,
+      });
+      closeModal();
+      alert('Senha alterada com sucesso!');
+    } catch (err) {
+      const el = $('#m-err'); el.textContent = err.message; el.classList.remove('hidden');
+      throw err; // mantém o modal aberto
+    }
+  });
+});
+
+// ---------- Navegação ----------
+document.querySelectorAll('.nav-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.view').forEach((v) => v.classList.add('hidden'));
+    $('#view-' + btn.dataset.view).classList.remove('hidden');
+    stopTimers();
+    if (btn.dataset.view === 'kanban') loadKanban();
+    if (btn.dataset.view === 'inbox') loadInbox();
+    if (btn.dataset.view === 'dashboard') loadDashboard();
+    if (btn.dataset.view === 'whatsapp') loadWhatsApp();
+    if (btn.dataset.view === 'templates') loadTemplates();
+  });
+});
+function stopTimers() {
+  clearInterval(state.waTimer); clearInterval(state.inboxTimer);
+  state.waTimer = state.inboxTimer = null;
+}
+async function boot() {
+  state.stages = await api('GET', '/api/stages');
+  state.templates = await api('GET', '/api/templates');
+  await loadKanban();
+}
+
+// ---------- Modal genérico ----------
+let modalOk = null;
+function openModal(title, bodyHtml, onOk) {
+  $('#modal-title').textContent = title;
+  $('#modal-body').innerHTML = bodyHtml;
+  $('#modal').classList.remove('hidden');
+  modalOk = onOk;
+}
+function closeModal() { $('#modal').classList.add('hidden'); modalOk = null; }
+$('#modal-cancel').addEventListener('click', closeModal);
+$('#modal-ok').addEventListener('click', async () => { if (modalOk) await modalOk().catch(() => {}); });
+
+// ---------- Utilidades ----------
+function fmtDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso.replace(' ', 'T'));
+  return isNaN(d) ? iso : d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function renderThread(el, msgs) {
+  el.innerHTML = msgs.map((m) => `
+    <div class="msg ${m.direction === 'IN' ? 'in' : 'out'}">${esc(m.body)}<span class="mtime">${fmtDateTime(m.created_at)}</span></div>
+  `).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+// ============================================================
+// KANBAN
+// ============================================================
+async function loadKanban() {
+  state.contacts = await api('GET', '/api/contacts');
+  const board = $('#kanban-board');
+  board.innerHTML = '';
+  for (const st of state.stages) {
+    const cards = state.contacts.filter((c) => c.stage_id === st.id);
+    const col = document.createElement('div');
+    col.className = 'kcol';
+    col.dataset.stageId = st.id;
+    col.innerHTML = `<div class="kcol-head">${esc(st.name)} <span class="count">${cards.length}</span></div><div class="kcol-body"></div>`;
+    const body = col.querySelector('.kcol-body');
+    for (const c of cards) {
+      const card = document.createElement('div');
+      card.className = 'kcard';
+      card.draggable = true;
+      card.dataset.contactId = c.id;
+      card.innerHTML = `
+        <div class="kname">${esc(c.name || c.phone)}</div>
+        <div class="kphone">${esc(c.phone)}</div>
+        ${c.last_message ? `<div class="kpreview">${c.last_message.direction === 'OUT' ? '↗ ' : '↙ '}${esc(c.last_message.body)}</div>` : ''}
+        ${c.appointment_at ? `<div class="kappt">📅 ${fmtDateTime(c.appointment_at)}</div>` : ''}
+      `;
+      card.addEventListener('click', () => openContactPanel(c.id));
+      card.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('text/plain', c.id);
+        card.classList.add('dragging');
+      });
+      card.addEventListener('dragend', () => card.classList.remove('dragging'));
+      body.appendChild(card);
+    }
+    // Drop na coluna
+    col.addEventListener('dragover', (e) => { e.preventDefault(); col.classList.add('dragover'); });
+    col.addEventListener('dragleave', () => col.classList.remove('dragover'));
+    col.addEventListener('drop', async (e) => {
+      e.preventDefault(); col.classList.remove('dragover');
+      const id = e.dataTransfer.getData('text/plain');
+      const stageId = Number(col.dataset.stageId);
+      await api('PUT', `/api/contacts/${id}`, { stage_id: stageId });
+      loadKanban();
+    });
+    board.appendChild(col);
+  }
+}
+
+$('#btn-new-contact').addEventListener('click', () => {
+  const opts = state.stages.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  openModal('Novo contato', `
+    <label>Nome<input type="text" id="m-name"></label>
+    <label>Telefone (só números, com DDI)<input type="text" id="m-phone" placeholder="5511999999999"></label>
+    <label>Etapa<select id="m-stage">${opts}</select></label>
+    <p id="m-err" class="error hidden"></p>
+  `, async () => {
+    try {
+      const c = await api('POST', '/api/contacts', {
+        name: $('#m-name').value, phone: $('#m-phone').value,
+        stage_id: Number($('#m-stage').value),
+      });
+      closeModal(); loadKanban(); openContactPanel(c.id);
+    } catch (err) {
+      const el = $('#m-err'); el.textContent = err.message; el.classList.remove('hidden');
+      throw err;
+    }
+  });
+});
+
+// ---------- Painel lateral do contato ----------
+async function openContactPanel(id) {
+  state.activeContactId = id;
+  const c = state.contacts.find((x) => x.id === id) || await api('GET', `/api/contacts/${id}`);
+  $('#panel-name').textContent = c.name || c.phone;
+  $('#panel-contact-name').value = c.name || '';
+  $('#panel-contact-phone').value = c.phone || '';
+  $('#panel-stage').innerHTML = state.stages.map((s) =>
+    `<option value="${s.id}" ${s.id === c.stage_id ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+  $('#panel-tags').value = c.tags || '';
+  $('#panel-notes').value = c.notes || '';
+  $('#panel-appointment').value = (c.appointment_at || '').replace(' ', 'T').slice(0, 16);
+  $('#panel-templates').innerHTML = state.templates.map((t) =>
+    `<button class="tpl-chip" data-tpl="${t.id}" title="${esc(t.body)}">${esc(t.name)}</button>`).join('');
+  $('#contact-panel').classList.remove('hidden');
+  await refreshPanelThread();
+}
+function closePanel() { $('#contact-panel').classList.add('hidden'); state.activeContactId = null; }
+$('#panel-close').addEventListener('click', closePanel);
+async function refreshPanelThread() {
+  if (!state.activeContactId) return;
+  const msgs = await api('GET', `/api/contacts/${state.activeContactId}/messages`);
+  renderThread($('#panel-thread'), msgs);
+}
+$('#panel-save').addEventListener('click', async () => {
+  const appt = $('#panel-appointment').value;
+  await api('PUT', `/api/contacts/${state.activeContactId}`, {
+    name: $('#panel-contact-name').value,
+    stage_id: Number($('#panel-stage').value),
+    tags: $('#panel-tags').value,
+    notes: $('#panel-notes').value,
+    appointment_at: appt ? appt.replace('T', ' ') + ':00' : null,
+  });
+  loadKanban();
+  alert('Dados salvos!');
+});
+async function panelSend() {
+  const ta = $('#panel-input');
+  const body = ta.value.trim();
+  if (!body) return;
+  ta.value = '';
+  try {
+    await api('POST', `/api/contacts/${state.activeContactId}/messages`, { body });
+    await refreshPanelThread(); loadKanban();
+  } catch (err) { alert('Falha ao enviar: ' + err.message); ta.value = body; }
+}
+$('#panel-send').addEventListener('click', panelSend);
+$('#panel-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); panelSend(); }
+});
+$('#panel-templates').addEventListener('click', async (e) => {
+  const chip = e.target.closest('[data-tpl]');
+  if (!chip) return;
+  const t = state.templates.find((x) => x.id === Number(chip.dataset.tpl));
+  if (t) { $('#panel-input').value = t.body; $('#panel-input').focus(); }
+});
+
+// ============================================================
+// INBOX
+// ============================================================
+async function loadInbox() {
+  state.contacts = await api('GET', '/api/contacts');
+  const list = $('#inbox-list');
+  const sorted = [...state.contacts].sort((a, b) =>
+    (b.last_message?.created_at || b.updated_at || '') > (a.last_message?.created_at || a.updated_at || '') ? 1 : -1);
+  list.innerHTML = sorted.map((c) => `
+    <div class="conv ${c.id === state.inboxContactId ? 'active' : ''}" data-id="${c.id}">
+      <span class="ctime">${c.last_message ? fmtDateTime(c.last_message.created_at) : ''}</span>
+      <div class="cname">${esc(c.name || c.phone)}</div>
+      <div class="cprev">${c.last_message ? esc(c.last_message.body) : '<span class="muted">sem mensagens</span>'}</div>
+    </div>`).join('') || '<p class="muted" style="padding:16px">Nenhuma conversa ainda.</p>';
+  list.querySelectorAll('.conv').forEach((el) =>
+    el.addEventListener('click', () => openInboxThread(Number(el.dataset.id))));
+  if (state.inboxContactId) await openInboxThread(state.inboxContactId, true);
+  // Atualiza a lista a cada 8s enquanto estiver na inbox
+  state.inboxTimer = setInterval(async () => {
+    if ($('#view-inbox').classList.contains('hidden')) return;
+    const prev = state.inboxContactId;
+    await loadInboxKeepScroll();
+    if (prev) await refreshInboxThread(true);
+  }, 8000);
+}
+async function loadInboxKeepScroll() {
+  const list = $('#inbox-list');
+  const st = list.scrollTop;
+  state.contacts = await api('GET', '/api/contacts');
+  const sorted = [...state.contacts].sort((a, b) =>
+    (b.last_message?.created_at || b.updated_at || '') > (a.last_message?.created_at || a.updated_at || '') ? 1 : -1);
+  list.innerHTML = sorted.map((c) => `
+    <div class="conv ${c.id === state.inboxContactId ? 'active' : ''}" data-id="${c.id}">
+      <span class="ctime">${c.last_message ? fmtDateTime(c.last_message.created_at) : ''}</span>
+      <div class="cname">${esc(c.name || c.phone)}</div>
+      <div class="cprev">${c.last_message ? esc(c.last_message.body) : '<span class="muted">sem mensagens</span>'}</div>
+    </div>`).join('');
+  list.scrollTop = st;
+  list.querySelectorAll('.conv').forEach((el) =>
+    el.addEventListener('click', () => openInboxThread(Number(el.dataset.id))));
+}
+async function openInboxThread(id, keepList) {
+  state.inboxContactId = id;
+  if (!keepList) {
+    document.querySelectorAll('#inbox-list .conv').forEach((el) =>
+      el.classList.toggle('active', Number(el.dataset.id) === id));
+  }
+  const c = state.contacts.find((x) => x.id === id);
+  $('#inbox-thread-head').innerHTML = `${esc(c?.name || c?.phone || '')} <span class="muted-sm">${esc(c?.phone || '')}</span>`;
+  $('#inbox-templates').innerHTML = state.templates.map((t) =>
+    `<button class="tpl-chip" data-tpl="${t.id}" title="${esc(t.body)}">${esc(t.name)}</button>`).join('');
+  $('#inbox-reply').classList.remove('hidden');
+  await refreshInboxThread();
+}
+async function refreshInboxThread(silent) {
+  if (!state.inboxContactId) return;
+  try {
+    const msgs = await api('GET', `/api/contacts/${state.inboxContactId}/messages`);
+    renderThread($('#inbox-thread'), msgs);
+  } catch (e) { if (!silent) throw e; }
+}
+async function inboxSend() {
+  const ta = $('#inbox-input');
+  const body = ta.value.trim();
+  if (!body || !state.inboxContactId) return;
+  ta.value = '';
+  try {
+    await api('POST', `/api/contacts/${state.inboxContactId}/messages`, { body });
+    await refreshInboxThread(); loadInboxKeepScroll();
+  } catch (err) { alert('Falha ao enviar: ' + err.message); ta.value = body; }
+}
+$('#inbox-send').addEventListener('click', inboxSend);
+$('#inbox-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); inboxSend(); }
+});
+$('#inbox-templates').addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-tpl]');
+  if (!chip) return;
+  const t = state.templates.find((x) => x.id === Number(chip.dataset.tpl));
+  if (t) { $('#inbox-input').value = t.body; $('#inbox-input').focus(); }
+});
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+async function loadDashboard() {
+  const d = await api('GET', '/api/dashboard');
+  $('#dash-stages').innerHTML = Object.entries(d.por_estagio).map(([stage, total]) => `
+    <div class="dash-card"><h3>${esc(stage)}</h3><div class="dash-num">${total}</div></div>`).join('');
+  $('#dash-resp').textContent = d.tempo_medio_primeira_resposta_min == null
+    ? '—' : d.tempo_medio_primeira_resposta_min + ' min';
+  $('#dash-followups').innerHTML = d.followups_pendentes.length
+    ? d.followups_pendentes.map((f) => `
+      <div class="follow-item">
+        <span><b>${esc(f.name || f.phone)}</b> <span class="muted-sm">${esc(f.stage)} · última msg: ${f.ultima_msg ? fmtDateTime(f.ultima_msg) : '—'}</span></span>
+        <button class="btn" data-fup="${f.id}">Abrir</button>
+      </div>`).join('')
+    : '<p class="muted">Nenhum follow-up pendente 🎉</p>';
+  $('#dash-followups').querySelectorAll('[data-fup]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      document.querySelector('[data-view="kanban"]').click();
+      setTimeout(() => openContactPanel(Number(b.dataset.fup)), 300);
+    }));
+}
+$('#btn-refresh-dash').addEventListener('click', loadDashboard);
+
+// ============================================================
+// WHATSAPP (QR)
+// ============================================================
+async function loadWhatsApp() {
+  await refreshWaStatus();
+  state.waTimer = setInterval(refreshWaStatus, 10000);
+}
+async function refreshWaStatus() {
+  try {
+    const s = await api('GET', '/api/whatsapp/status');
+    const st = $('#wa-status');
+    $('#wa-qr').classList.add('hidden');
+    if (s.provider === 'cloudapi' && s.connected) {
+      st.textContent = '✅ Conectado via API oficial da Meta';
+      st.className = 'wa-status ok';
+    } else {
+      st.textContent = '⚠️ ' + (s.detail || 'API oficial não configurada');
+      st.className = 'wa-status';
+    }
+  } catch (e) { /* ignora durante polling */ }
+}
+
+// ============================================================
+// MODELOS
+// ============================================================
+async function loadTemplates() {
+  state.templates = await api('GET', '/api/templates');
+  $('#tpl-list').innerHTML = state.templates.map((t) => `
+    <div class="tpl-item">
+      <h4>${esc(t.name)}
+        <span class="actions">
+          <button class="btn" data-edit="${t.id}">Editar</button>
+          <button class="btn danger" data-del="${t.id}">Excluir</button>
+        </span>
+      </h4>
+      <p>${esc(t.body)}</p>
+    </div>`).join('');
+  $('#tpl-list').querySelectorAll('[data-edit]').forEach((b) =>
+    b.addEventListener('click', () => editTemplate(Number(b.dataset.edit))));
+  $('#tpl-list').querySelectorAll('[data-del]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      if (!confirm('Excluir este modelo?')) return;
+      await api('DELETE', `/api/templates/${b.dataset.del}`);
+      loadTemplates();
+    }));
+}
+function editTemplate(id) {
+  const t = id ? state.templates.find((x) => x.id === id) : { name: '', body: '' };
+  openModal(id ? 'Editar modelo' : 'Novo modelo', `
+    <label>Nome<input type="text" id="m-name" value="${esc(t.name)}"></label>
+    <label>Texto<textarea id="m-body" rows="5">${esc(t.body)}</textarea></label>
+    <p id="m-err" class="error hidden"></p>
+  `, async () => {
+    try {
+      if (id) await api('PUT', `/api/templates/${id}`, { name: $('#m-name').value, body: $('#m-body').value });
+      else await api('POST', '/api/templates', { name: $('#m-name').value, body: $('#m-body').value });
+      closeModal(); loadTemplates();
+    } catch (err) {
+      const el = $('#m-err'); el.textContent = err.message; el.classList.remove('hidden');
+      throw err;
+    }
+  });
+}
+$('#btn-new-tpl').addEventListener('click', () => editTemplate(null));
+
+// Checa se já há sessão ativa ao carregar a página
+(async () => {
+  try {
+    const me = await api('GET', '/api/me');
+    showApp(me.username);
+    await boot();
+  } catch (e) { showLogin(); }
+})();
+
+</script>
+</body>
+</html>
