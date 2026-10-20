@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "description": "CRM WhatsApp CriandoArt — versão serverless para Vercel (Neon Postgres + JWT + Cloud API)",
+  "engines": {
+    "node": "20.x"
+  },
+  "name": "crm-whatsapp-vercel",
+  "private": true,
+  "version": "1.0.0"
+}
