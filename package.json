@@ -6,9 +6,9 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2"
   },
-  "description": "CRM WhatsApp CriandoArt — versão serverless para Vercel (Neon Postgres + JWT + Cloud API)",
+  "description": "CRM WhatsApp CriandoArt \u2014 vers\u00e3o serverless para Vercel (Neon Postgres + JWT + Cloud API)",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "name": "crm-whatsapp-vercel",
   "private": true,
