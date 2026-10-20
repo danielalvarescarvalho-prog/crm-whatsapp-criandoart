@@ -337,6 +337,8 @@ app.get('/api/dashboard', requireLogin, async (req, res, next) => {
 
 // ============================================================
 // WHATSAPP — apenas API oficial da Meta (Cloud API)
+// O Baileys (QR code / WebSocket) foi removido: não funciona em serverless.
+// Envio: HTTPS ao graph.facebook.com. Recebimento: webhook acima.
 // ============================================================
 async function enviarViaCloudAPI(phone, body) {
   if (!cloudApiConfigurado()) throw new Error('Cloud API não configurada (WA_CLOUD_TOKEN / WA_CLOUD_PHONE_ID)');
@@ -371,13 +373,21 @@ async function registrarMensagemRecebida(phone, pushName, texto, waId) {
 }
 
 function verificarAssinaturaMeta(req, rawBody) {
-  if (!WA_CLOUD_APP_SECRET) return true;
+  if (!WA_CLOUD_APP_SECRET) return true; // sem secret, pula a verificação
   const sig = req.headers['x-hub-signature-256'] || '';
   const esperado = 'sha256=' + crypto.createHmac('sha256', WA_CLOUD_APP_SECRET).update(rawBody).digest('hex');
   try {
     return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(esperado));
   } catch (_) { return false; }
 }
+
+// Diagnóstico (temporário) — verifica variáveis de ambiente disponíveis
+app.get('/api/debug/env', (req, res) => {
+  const keys = Object.keys(process.env).filter(k =>
+    /POSTGRES|DATABASE|STORAGE|NEON/i.test(k)
+  );
+  res.json({ db_vars_found: keys, node_version: process.version });
+});
 
 app.get('/api/whatsapp/status', requireLogin, (req, res) => {
   res.json({
@@ -389,6 +399,7 @@ app.get('/api/whatsapp/status', requireLogin, (req, res) => {
       : 'configure WA_CLOUD_TOKEN e WA_CLOUD_PHONE_ID nas variáveis de ambiente',
   });
 });
+// Mantido por compatibilidade com o frontend antigo: não há mais QR code.
 app.get('/api/whatsapp/qr', requireLogin, (req, res) => {
   res.json({ status: 'cloudapi', qr: null, phone: null, detail: 'Conexão via API oficial — sem QR code' });
 });
@@ -436,6 +447,8 @@ app.post('/api/contacts/:id/messages', requireLogin, async (req, res, next) => {
 
 // ============================================================
 // FRONTEND ESTÁTICO + SPA FALLBACK
+// (No deploy Vercel, o rewrite /(.*) -> /api/index manda tudo p/ cá;
+//  o express.static serve os arquivos de public/.)
 // ============================================================
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 app.use(express.static(PUBLIC_DIR));
@@ -443,9 +456,12 @@ app.get(/^\/(?!api|webhook).*/, (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
 });
 
+// Tratamento de erros da API
+// eslint-disable-next-line no-unused-vars
 app.use('/api', (err, req, res, next) => {
   console.error('[api]', err);
   res.status(500).json({ error: 'erro interno' });
 });
 
+// Exportado como serverless function (@vercel/node).
 module.exports = app;
