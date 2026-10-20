@@ -38,6 +38,22 @@ app.get('/api/debug/env', (req, res) => {
   res.json({ all_env_keys: keys, node_version: process.version });
 });
 
+// Teste de conexão com o banco (com timeout curto)
+app.get('/api/debug/db', async (req, res) => {
+  const t0 = Date.now();
+  try {
+    const { sql } = require('./db');
+    const timeoutPromise = new Promise((_, rej) =>
+      setTimeout(() => rej(new Error('timeout de 8s ao conectar')), 8000)
+    );
+    const queryPromise = sql`SELECT 1 as ok`;
+    const result = await Promise.race([queryPromise, timeoutPromise]);
+    res.json({ ok: true, result: result.rows, ms: Date.now() - t0 });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message, ms: Date.now() - t0 });
+  }
+});
+
 // Garante schema + seeds do Postgres antes de atender (idempotente).
 app.use(async (req, res, next) => {
   try {
