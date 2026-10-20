@@ -32,6 +32,14 @@ function cloudApiConfigurado() {
 // ============================================================
 const app = express();
 
+// Diagnóstico (temporário) — ANTES do middleware do banco
+app.get('/api/debug/env', (req, res) => {
+  const keys = Object.keys(process.env).filter(k =>
+    /POSTGRES|DATABASE|STORAGE|NEON/i.test(k)
+  );
+  res.json({ db_vars_found: keys, node_version: process.version });
+});
+
 // Garante schema + seeds do Postgres antes de atender (idempotente).
 app.use(async (req, res, next) => {
   try {
@@ -380,14 +388,6 @@ function verificarAssinaturaMeta(req, rawBody) {
     return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(esperado));
   } catch (_) { return false; }
 }
-
-// Diagnóstico (temporário) — verifica variáveis de ambiente disponíveis
-app.get('/api/debug/env', (req, res) => {
-  const keys = Object.keys(process.env).filter(k =>
-    /POSTGRES|DATABASE|STORAGE|NEON/i.test(k)
-  );
-  res.json({ db_vars_found: keys, node_version: process.version });
-});
 
 app.get('/api/whatsapp/status', requireLogin, (req, res) => {
   res.json({
