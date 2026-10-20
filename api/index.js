@@ -34,10 +34,8 @@ const app = express();
 
 // Diagnóstico (temporário) — ANTES do middleware do banco
 app.get('/api/debug/env', (req, res) => {
-  const keys = Object.keys(process.env).filter(k =>
-    /POSTGRES|DATABASE|STORAGE|NEON/i.test(k)
-  );
-  res.json({ db_vars_found: keys, node_version: process.version });
+  const keys = Object.keys(process.env).sort();
+  res.json({ all_env_keys: keys, node_version: process.version });
 });
 
 // Garante schema + seeds do Postgres antes de atender (idempotente).
