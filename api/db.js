@@ -10,6 +10,7 @@ const bcrypt = require('bcryptjs');
 // Aceita POSTGRES_URL (padrão Vercel) ou DATABASE_URL.
 // fullResults: true → resultados no formato { rows, ... } (estilo node-postgres).
 const DATABASE_URL =
+  process.env.CRM_DATABASE_URL ||
   process.env.POSTGRES_URL ||
   process.env.DATABASE_URL ||
   process.env.STORAGE_URL ||
