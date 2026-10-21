@@ -471,9 +471,11 @@ app.post('/api/contacts/:id/messages', requireLogin, async (req, res, next) => {
 //  o express.static serve os arquivos de public/.)
 // ============================================================
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+// Frontend SPA: index.html autocontido na raiz do repo.
+const SPA_INDEX = path.join(__dirname, '..', 'index.html');
 app.use(express.static(PUBLIC_DIR));
 app.get(/^\/(?!api|webhook).*/, (req, res) => {
-  res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+  res.sendFile(SPA_INDEX);
 });
 
 // Tratamento de erros da API
