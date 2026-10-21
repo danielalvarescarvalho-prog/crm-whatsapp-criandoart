@@ -342,21 +342,28 @@ app.delete('/api/templates/:id', requireLogin, async (req, res, next) => {
 // ============================================================
 app.get('/api/dashboard', requireLogin, async (req, res, next) => {
   try {
-    const { rows: stages } = await sql`
+    // Filtro opcional por tag de origem (?tag=veltrix). A tag é normalizada
+    // para [a-z0-9], então a interpolação abaixo é segura.
+    const tag = normTag(req.query.tag || '');
+    const tagOn = tag ? `AND (',' || REPLACE(c.tags, ' ', '') || ',') LIKE '%,${tag},%'` : '';
+    const tagWhere = tag ? `WHERE (',' || REPLACE(c.tags, ' ', '') || ',') LIKE '%,${tag},%'` : '';
+    const tagAnd = tag ? `AND (',' || REPLACE(c.tags, ' ', '') || ',') LIKE '%,${tag},%'` : '';
+
+    const { rows: stages } = await sql.query(`
       SELECT s.name AS stage, COUNT(c.id) AS total
-      FROM stages s LEFT JOIN contacts c ON c.stage_id = s.id
-      GROUP BY s.id, s.name ORDER BY s.position`;
+      FROM stages s LEFT JOIN contacts c ON c.stage_id = s.id ${tagOn}
+      GROUP BY s.id, s.name ORDER BY s.position`);
     const por_estagio = {};
     for (const r of stages) por_estagio[r.stage] = Number(r.total);
 
-    const { rows: pares } = await sql`
+    const { rows: pares } = await sql.query(`
       SELECT c.id,
         (SELECT MIN(created_at) FROM messages m WHERE m.contact_id = c.id AND m.direction = 'IN') AS primeiro_in,
         (SELECT MIN(m2.created_at) FROM messages m2
            WHERE m2.contact_id = c.id AND m2.direction = 'OUT'
              AND m2.created_at >= (SELECT MIN(created_at) FROM messages m WHERE m.contact_id = c.id AND m.direction = 'IN')
         ) AS primeiro_out
-      FROM contacts c`;
+      FROM contacts c ${tagWhere}`);
     let soma = 0, n = 0;
     for (const p of pares) {
       if (p.primeiro_in && p.primeiro_out) {
@@ -366,35 +373,35 @@ app.get('/api/dashboard', requireLogin, async (req, res, next) => {
     }
     const tempo_medio_primeira_resposta_min = n ? Math.round(soma / n) : null;
 
-    const { rows: followups_pendentes } = await sql`
+    const { rows: followups_pendentes } = await sql.query(`
       SELECT c.id, c.name, c.phone, s.name AS stage,
         (SELECT MAX(created_at) FROM messages m WHERE m.contact_id = c.id) AS ultima_msg
       FROM contacts c JOIN stages s ON s.id = c.stage_id
-      WHERE s.name IN ('Em atendimento', 'Qualificado')
+      WHERE s.name IN ('Em atendimento', 'Qualificado') ${tagAnd}
         AND NOT EXISTS (
           SELECT 1 FROM messages m
           WHERE m.contact_id = c.id AND m.direction = 'OUT'
             AND m.created_at >= NOW() - INTERVAL '24 hours'
         )
-      ORDER BY ultima_msg ASC`;
+      ORDER BY ultima_msg ASC`);
 
     // Funil ordenado + perdas (onde e por que perdemos).
-    const { rows: funilRows } = await sql`
+    const { rows: funilRows } = await sql.query(`
       SELECT s.name AS stage, COUNT(c.id) AS total
-      FROM stages s LEFT JOIN contacts c ON c.stage_id = s.id
-      GROUP BY s.id, s.name, s.position ORDER BY s.position`;
+      FROM stages s LEFT JOIN contacts c ON c.stage_id = s.id ${tagOn}
+      GROUP BY s.id, s.name, s.position ORDER BY s.position`);
     const totalLeads = funilRows.reduce((a, r) => a + Number(r.total), 0);
     const funil = funilRows.map((r) => ({
       stage: r.stage,
       total: Number(r.total),
       pct: totalLeads ? Math.round((Number(r.total) / totalLeads) * 100) : 0,
     }));
-    const { rows: motivos } = await sql`
-      SELECT lost_reason AS reason, COUNT(*) AS total FROM contacts
-      WHERE lost_reason <> '' GROUP BY lost_reason ORDER BY total DESC`;
-    const { rows: porEtapa } = await sql`
-      SELECT lost_from AS from_stage, COUNT(*) AS total FROM contacts
-      WHERE lost_from <> '' GROUP BY lost_from`;
+    const { rows: motivos } = await sql.query(`
+      SELECT lost_reason AS reason, COUNT(*) AS total FROM contacts c
+      WHERE lost_reason <> '' ${tagAnd} GROUP BY lost_reason ORDER BY total DESC`);
+    const { rows: porEtapa } = await sql.query(`
+      SELECT lost_from AS from_stage, COUNT(*) AS total FROM contacts c
+      WHERE lost_from <> '' ${tagAnd} GROUP BY lost_from`);
     const perdidos = Number((por_estagio['Perdido'] || 0));
     const faltaram = Number((por_estagio['Faltou'] || 0));
     const compareceram = Number((por_estagio['Compareceu'] || 0));
@@ -406,7 +413,7 @@ app.get('/api/dashboard', requireLogin, async (req, res, next) => {
       por_etapa: porEtapa.map((r) => ({ from_stage: r.from_stage, total: Number(r.total) })),
     };
 
-    res.json({ por_estagio, tempo_medio_primeira_resposta_min, followups_pendentes, funil, perdas });
+    res.json({ por_estagio, tempo_medio_primeira_resposta_min, followups_pendentes, funil, perdas, tag });
   } catch (e) { next(e); }
 });
 

@@ -292,7 +292,7 @@ textarea { resize: vertical; }
 
     <!-- DASHBOARD -->
     <section id="view-dashboard" class="view hidden">
-      <div class="view-head"><h2>Dashboard</h2><button id="btn-refresh-dash" class="btn">↻ Atualizar</button></div>
+      <div class="view-head"><h2>Dashboard</h2><div style="display:flex;gap:8px;align-items:center"><select id="dash-tag-filter" title="Filtrar por origem"><option value="">Todas as origens</option></select><button id="btn-refresh-dash" class="btn">↻ Atualizar</button></div></div>
       <div id="dash-stages" class="dash-cards"></div>
       <div class="dash-row">
         <div class="dash-card grow">
@@ -547,10 +547,14 @@ const originLabels = (csv) => String(csv || '').split(',').map((t) => t.trim().t
   .map((t) => { const f = ORIGIN_TAGS.find(([v]) => v === t); return f ? f[1] : null; })
   .filter(Boolean);
 (function initTagFilter() {
-  const sel = $('#kanban-tag-filter');
-  sel.innerHTML = '<option value="">Todas as origens</option>' +
+  const opts = '<option value="">Todas as origens</option>' +
     ORIGIN_TAGS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  const sel = $('#kanban-tag-filter');
+  sel.innerHTML = opts;
   sel.addEventListener('change', () => { state.tagFilter = sel.value; loadKanban(); });
+  const dsel = $('#dash-tag-filter');
+  dsel.innerHTML = opts;
+  dsel.addEventListener('change', () => loadDashboard());
 })();
 async function loadKanban() {
   state.contacts = await api('GET', '/api/contacts');
@@ -807,7 +811,8 @@ $('#inbox-templates').addEventListener('click', (e) => {
 // DASHBOARD
 // ============================================================
 async function loadDashboard() {
-  const d = await api('GET', '/api/dashboard');
+  const dtag = ($('#dash-tag-filter') || {}).value || '';
+  const d = await api('GET', '/api/dashboard' + (dtag ? `?tag=${encodeURIComponent(dtag)}` : ''));
   $('#dash-stages').innerHTML = Object.entries(d.por_estagio).map(([stage, total]) => `
     <div class="dash-card"><h3>${esc(stage)}</h3><div class="dash-num">${total}</div></div>`).join('');
   $('#dash-resp').textContent = d.tempo_medio_primeira_resposta_min == null
