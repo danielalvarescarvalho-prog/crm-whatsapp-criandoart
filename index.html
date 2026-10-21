@@ -327,6 +327,7 @@ textarea { resize: vertical; }
       <label>Tags (separadas por vírgula)<input type="text" id="panel-tags" placeholder="ex: dentista, quente"></label>
       <label>Notas<textarea id="panel-notes" rows="3"></textarea></label>
       <button id="panel-save" class="btn primary">Salvar dados</button>
+      <button id="panel-delete" class="btn danger" style="margin-top:8px">Excluir lead</button>
       <hr>
       <h4>Conversa</h4>
       <div id="panel-thread" class="thread"></div>
@@ -590,6 +591,15 @@ $('#panel-save').addEventListener('click', async () => {
   });
   loadKanban();
   alert('Dados salvos!');
+});
+$('#panel-delete').addEventListener('click', async () => {
+  if (!state.activeContactId) return;
+  const c = state.contacts.find((x) => x.id === state.activeContactId);
+  const nome = c ? (c.name || c.phone) : 'este lead';
+  if (!confirm(`Excluir ${nome}? Essa ação não pode ser desfeita.`)) return;
+  await api('DELETE', `/api/contacts/${state.activeContactId}`);
+  closePanel();
+  loadKanban();
 });
 async function panelSend() {
   const ta = $('#panel-input');
