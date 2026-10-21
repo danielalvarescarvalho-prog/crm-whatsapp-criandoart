@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Captar lead — CRM CriandoArt</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f0f10; color: #f5f5f5; min-height: 100vh; display: flex; justify-content: center; padding: 24px 16px; }
+  .card { width: 100%; max-width: 440px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-size: 15px; color: #aaa; margin-bottom: 6px; }
+  .brand-dot { width: 10px; height: 10px; border-radius: 50%; background: #FF6A00; display: inline-block; }
+  h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  p.sub { color: #999; font-size: 14px; margin-bottom: 20px; }
+  label { display: block; font-size: 13px; color: #bbb; margin: 14px 0 6px; }
+  input, textarea { width: 100%; background: #1a1a1c; border: 1px solid #2c2c2e; color: #fff; border-radius: 10px; padding: 12px; font-size: 16px; outline: none; }
+  input:focus, textarea:focus { border-color: #FF6A00; }
+  textarea { min-height: 70px; resize: vertical; }
+  button { width: 100%; margin-top: 20px; background: #FF6A00; color: #fff; border: none; border-radius: 10px; padding: 14px; font-size: 16px; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .msg { margin-top: 14px; padding: 12px; border-radius: 10px; font-size: 14px; display: none; }
+  .msg.ok { display: block; background: #12351f; color: #7ee2a8; border: 1px solid #1f6b3a; }
+  .msg.err { display: block; background: #3d1518; color: #ff9d9d; border: 1px solid #7a2a2e; }
+  .keybox { margin-top: 26px; padding-top: 16px; border-top: 1px solid #262628; }
+  .keybox label { margin-top: 0; }
+  .hint { font-size: 12px; color: #777; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand"><span class="brand-dot"></span>CRM CriandoArt</div>
+  <h1>Captar lead</h1>
+  <p class="sub">O lead cai direto na etapa <b>Novo</b> do funil.</p>
+  <form id="f">
+    <label>Nome
+      <input type="text" id="name" placeholder="Nome do lead" autocomplete="off">
+    </label>
+    <label>WhatsApp / telefone *
+      <input type="tel" id="phone" placeholder="(31) 99999-9999" required autocomplete="off" inputmode="tel">
+    </label>
+    <label>Origem
+      <input type="text" id="source" value="veltrix" autocomplete="off">
+    </label>
+    <label>Observações
+      <textarea id="notes" placeholder="Ex: quer 2 maquininhas, chamar após 14h"></textarea>
+    </label>
+    <button type="submit" id="btn">Salvar lead</button>
+    <div class="msg" id="msg"></div>
+  </form>
+  <div class="keybox" id="keybox" style="display:none">
+    <label>Chave de acesso
+      <input type="password" id="key" placeholder="Cole a chave aqui" autocomplete="off">
+    </label>
+    <p class="hint">A chave vem no link que a Sol te mandou. Ela fica salva neste aparelho.</p>
+  </div>
+</div>
+<script>
+(function () {
+  var params = new URLSearchParams(location.search);
+  var key = params.get('key') || localStorage.getItem('intake_key') || '';
+  var keyInput = document.getElementById('key');
+  var keybox = document.getElementById('keybox');
+  if (!key) { keybox.style.display = 'block'; }
+  else { localStorage.setItem('intake_key', key); }
+
+  var form = document.getElementById('f');
+  var btn = document.getElementById('btn');
+  var msg = document.getElementById('msg');
+
+  function show(text, ok) {
+    msg.textContent = text;
+    msg.className = 'msg ' + (ok ? 'ok' : 'err');
+  }
+
+  form.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var k = key || keyInput.value.trim();
+    if (!k) { show('Falta a chave de acesso.', false); keybox.style.display = 'block'; return; }
+    localStorage.setItem('intake_key', k); key = k;
+    var phone = document.getElementById('phone').value.trim();
+    if (!phone) { show('Telefone é obrigatório.', false); return; }
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    fetch('/api/intake/lead?key=' + encodeURIComponent(k), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: document.getElementById('name').value.trim(),
+        phone: phone,
+        source: document.getElementById('source').value.trim() || 'veltrix',
+        notes: document.getElementById('notes').value.trim()
+      })
+    }).then(function (r) { return r.json().then(function (j) { return { status: r.status, body: j }; }); })
+    .then(function (res) {
+      if (res.status === 200 && res.body.ok) {
+        var n = res.body.contact && res.body.contact.name ? res.body.contact.name : 'Lead';
+        show('✓ ' + n + ' salvo no funil!', true);
+        document.getElementById('name').value = '';
+        document.getElementById('phone').value = '';
+        document.getElementById('notes').value = '';
+        document.getElementById('name').focus();
+      } else if (res.status === 409) {
+        show('Esse telefone já está no CRM.', false);
+      } else if (res.status === 403) {
+        show('Chave inválida. Confere o link.', false);
+      } else {
+        show('Erro: ' + (res.body.error || 'tenta de novo'), false);
+      }
+    }).catch(function () { show('Falha de rede. Tenta de novo.', false); })
+    .finally(function () { btn.disabled = false; btn.textContent = 'Salvar lead'; });
+  });
+})();
+</script>
+</body>
+</html>

@@ -202,6 +202,34 @@ app.get('/api/contacts/:id', requireLogin, async (req, res, next) => {
     res.json(await contactWithLast(rows[0]));
   } catch (e) { next(e); }
 });
+// ---------- Intake pública de leads (formulário/link, sem login) ----------
+// POST /api/intake/lead?key=INTAKE_KEY  { name, phone, notes?, source? }
+// Protegida por chave compartilhada (env INTAKE_KEY). Cai na etapa "Novo".
+const INTAKE_KEY = process.env.INTAKE_KEY || '';
+app.post('/api/intake/lead', async (req, res, next) => {
+  try {
+    if (!INTAKE_KEY) return res.status(503).json({ error: 'intake não configurado' });
+    const key = req.query.key || req.headers['x-intake-key'] || '';
+    if (key !== INTAKE_KEY) return res.status(403).json({ error: 'chave inválida' });
+    const { name, phone, notes, source } = req.body || {};
+    const cleanPhone = String(phone || '').replace(/\D/g, '');
+    if (!cleanPhone) return res.status(400).json({ error: 'telefone obrigatório' });
+    const sid = await stageIdByName('Novo');
+    const tags = ['intake', String(source || 'manual').toLowerCase().replace(/[^a-z0-9_-]/g, '')].filter(Boolean).join(',');
+    try {
+      const { rows } = await sql`
+        INSERT INTO contacts (name, phone, stage_id, tags, notes, appointment_at)
+        VALUES (${name || cleanPhone}, ${cleanPhone}, ${sid}, ${tags}, ${notes || ''}, null)
+        RETURNING *`;
+      res.json({ ok: true, contact: rows[0] });
+    } catch (e) {
+      if (String(e.message).includes('duplicate') || String(e.code) === '23505') {
+        return res.status(409).json({ error: 'telefone já cadastrado' });
+      }
+      throw e;
+    }
+  } catch (e) { next(e); }
+});
 app.post('/api/contacts', requireLogin, async (req, res, next) => {
   try {
     const { name, phone, stage_id, tags, notes, appointment_at } = req.body || {};
