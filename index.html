@@ -154,6 +154,9 @@ textarea { resize: vertical; }
   padding: 4px 12px; font-size: 12px; cursor: pointer; color: var(--muted);
 }
 .tpl-chip:hover { border-color: var(--accent); color: var(--accent); }
+.tpl-chip.on { border-color: var(--accent); color: var(--accent); background: #1a1410; }
+.ktags { font-size: 11px; color: var(--accent); margin-top: 4px; }
+#kanban-tag-filter { background: var(--bg2); border: 1px solid var(--border); color: var(--fg); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
 
 /* ---------- Funil de vendas ---------- */
 .funnel-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
@@ -262,7 +265,10 @@ textarea { resize: vertical; }
     <section id="view-kanban" class="view">
       <div class="view-head">
         <h2>Funil de atendimento</h2>
-        <button id="btn-new-contact" class="btn">+ Novo contato</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="kanban-tag-filter" title="Filtrar por origem"><option value="">Todas as origens</option></select>
+          <button id="btn-new-contact" class="btn">+ Novo contato</button>
+        </div>
       </div>
       <div id="kanban-board" class="kanban"></div>
     </section>
@@ -342,7 +348,8 @@ textarea { resize: vertical; }
         <label>Etapa<select id="panel-stage"></select></label>
         <label>Agendamento<input type="datetime-local" id="panel-appointment"></label>
       </div>
-      <label>Tags (separadas por vírgula)<input type="text" id="panel-tags" placeholder="ex: dentista, quente"></label>
+      <label>Tags (separadas por vírgula)<input type="text" id="panel-tags" placeholder="ex: veltrix, quente"></label>
+      <div id="panel-tag-chips" class="tpl-row" style="margin:8px 0 4px"></div>
       <label>Notas<textarea id="panel-notes" rows="3"></textarea></label>
       <button id="panel-save" class="btn primary">Salvar dados</button>
       <button id="panel-delete" class="btn danger" style="margin-top:8px">Excluir lead</button>
@@ -531,12 +538,30 @@ function renderThread(el, msgs) {
 // ============================================================
 // KANBAN
 // ============================================================
+const ORIGIN_TAGS = [
+  ['veltrix', 'Veltrix'], ['whatsapp', 'WhatsApp'], ['instagram', 'Instagram'],
+  ['linkedin', 'LinkedIn'], ['facebook', 'Facebook'], ['google', 'Google'],
+  ['indicacao', 'Indicação'], ['site', 'Site'], ['manual', 'Manual'],
+];
+const originLabels = (csv) => String(csv || '').split(',').map((t) => t.trim().toLowerCase()).filter(Boolean)
+  .map((t) => { const f = ORIGIN_TAGS.find(([v]) => v === t); return f ? f[1] : null; })
+  .filter(Boolean);
+(function initTagFilter() {
+  const sel = $('#kanban-tag-filter');
+  sel.innerHTML = '<option value="">Todas as origens</option>' +
+    ORIGIN_TAGS.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  sel.addEventListener('change', () => { state.tagFilter = sel.value; loadKanban(); });
+})();
 async function loadKanban() {
   state.contacts = await api('GET', '/api/contacts');
   const board = $('#kanban-board');
   board.innerHTML = '';
+  const tagFilter = state.tagFilter || '';
+  const visible = tagFilter
+    ? state.contacts.filter((c) => String(c.tags || '').split(',').map((t) => t.trim().toLowerCase()).includes(tagFilter))
+    : state.contacts;
   for (const st of state.stages) {
-    const cards = state.contacts.filter((c) => c.stage_id === st.id);
+    const cards = visible.filter((c) => c.stage_id === st.id);
     const col = document.createElement('div');
     col.className = 'kcol';
     col.dataset.stageId = st.id;
@@ -549,7 +574,7 @@ async function loadKanban() {
       card.dataset.contactId = c.id;
       card.innerHTML = `
         <div class="kname">${esc(c.name || c.phone)}</div>
-        <div class="kphone">${esc(c.phone)}</div>
+        <div class="kphone">${esc(c.phone)}</div>\n        ${originLabels(c.tags).length ? '<div class="ktags">📍 ' + originLabels(c.tags).map(esc).join(' · ') + '</div>' : ''}
         ${c.last_message ? `<div class="kpreview">${c.last_message.direction === 'OUT' ? '↗ ' : '↙ '}${esc(c.last_message.body)}</div>` : ''}
         ${c.appointment_at ? `<div class="kappt">📅 ${fmtDateTime(c.appointment_at)}</div>` : ''}
       `;
@@ -615,12 +640,26 @@ async function openContactPanel(id) {
   $('#panel-stage').innerHTML = state.stages.map((s) =>
     `<option value="${s.id}" ${s.id === c.stage_id ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
   $('#panel-tags').value = c.tags || '';
+  renderPanelTagChips();
   $('#panel-notes').value = c.notes || '';
   $('#panel-appointment').value = (c.appointment_at || '').replace(' ', 'T').slice(0, 16);
   $('#panel-templates').innerHTML = state.templates.map((t) =>
     `<button class="tpl-chip" data-tpl="${t.id}" title="${esc(t.body)}">${esc(t.name)}</button>`).join('');
   $('#contact-panel').classList.remove('hidden');
   await refreshPanelThread();
+}
+function renderPanelTagChips() {
+  const cur = $('#panel-tags').value.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
+  $('#panel-tag-chips').innerHTML = ORIGIN_TAGS.map(([v, l]) =>
+    `<button type="button" class="tpl-chip${cur.includes(v) ? ' on' : ''}" data-tag="${v}">${esc(l)}</button>`).join('');
+  $('#panel-tag-chips').querySelectorAll('[data-tag]').forEach((b) =>
+    b.addEventListener('click', () => togglePanelTag(b.dataset.tag)));
+}
+function togglePanelTag(v) {
+  const cur = $('#panel-tags').value.split(',').map((t) => t.trim().toLowerCase()).filter(Boolean);
+  const next = cur.includes(v) ? cur.filter((t) => t !== v) : [...cur, v];
+  $('#panel-tags').value = next.join(', ');
+  renderPanelTagChips();
 }
 function closePanel() { $('#contact-panel').classList.add('hidden'); state.activeContactId = null; }
 $('#panel-close').addEventListener('click', closePanel);

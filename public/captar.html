@@ -13,8 +13,8 @@
   h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
   p.sub { color: #999; font-size: 14px; margin-bottom: 20px; }
   label { display: block; font-size: 13px; color: #bbb; margin: 14px 0 6px; }
-  input, textarea { width: 100%; background: #1a1a1c; border: 1px solid #2c2c2e; color: #fff; border-radius: 10px; padding: 12px; font-size: 16px; outline: none; }
-  input:focus, textarea:focus { border-color: #FF6A00; }
+  input, textarea, select { width: 100%; background: #1a1a1c; border: 1px solid #2c2c2e; color: #fff; border-radius: 10px; padding: 12px; font-size: 16px; outline: none; }
+  input:focus, textarea:focus, select:focus { border-color: #FF6A00; }
   textarea { min-height: 70px; resize: vertical; }
   button { width: 100%; margin-top: 20px; background: #FF6A00; color: #fff; border: none; border-radius: 10px; padding: 14px; font-size: 16px; font-weight: 600; cursor: pointer; }
   button:disabled { opacity: .5; cursor: default; }
@@ -39,7 +39,17 @@
       <input type="tel" id="phone" placeholder="(31) 99999-9999" required autocomplete="off" inputmode="tel">
     </label>
     <label>Origem
-      <input type="text" id="source" value="veltrix" autocomplete="off">
+      <select id="source">
+        <option value="veltrix" selected>Veltrix</option>
+        <option value="whatsapp">WhatsApp</option>
+        <option value="instagram">Instagram</option>
+        <option value="linkedin">LinkedIn</option>
+        <option value="facebook">Facebook</option>
+        <option value="google">Google</option>
+        <option value="indicacao">Indicação</option>
+        <option value="site">Site</option>
+        <option value="manual">Manual</option>
+      </select>
     </label>
     <label>Observações
       <textarea id="notes" placeholder="Ex: quer 2 maquininhas, chamar após 14h"></textarea>

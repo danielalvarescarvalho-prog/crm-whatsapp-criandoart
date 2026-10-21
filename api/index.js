@@ -12,6 +12,15 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { sql, ensureDb, stageIdByName, upsertContactFromMessage } = require('./db');
 
+// Normaliza uma tag: minúscula, sem acento, só [a-z0-9]. Ex.: "Indicação" -> "indicacao".
+function normTag(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+function normTags(csv) {
+  return String(csv || '').split(',').map(normTag).filter(Boolean)
+    .filter((t, i, a) => a.indexOf(t) === i).join(', ');
+}
+
 // ---------- Config ----------
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-change-me';
 const COOKIE_NAME = 'crm_token';
@@ -215,7 +224,7 @@ app.post('/api/intake/lead', async (req, res, next) => {
     const cleanPhone = String(phone || '').replace(/\D/g, '');
     if (!cleanPhone) return res.status(400).json({ error: 'telefone obrigatório' });
     const sid = await stageIdByName('Novo');
-    const tags = ['intake', String(source || 'manual').toLowerCase().replace(/[^a-z0-9_-]/g, '')].filter(Boolean).join(',');
+    const tags = ['intake', normTag(source || 'manual')].filter(Boolean).join(',');
     try {
       const { rows } = await sql`
         INSERT INTO contacts (name, phone, stage_id, tags, notes, appointment_at)
@@ -239,7 +248,7 @@ app.post('/api/contacts', requireLogin, async (req, res, next) => {
     try {
       const { rows } = await sql`
         INSERT INTO contacts (name, phone, stage_id, tags, notes, appointment_at)
-        VALUES (${name || cleanPhone}, ${cleanPhone}, ${sid}, ${tags || ''}, ${notes || ''}, ${appointment_at || null})
+        VALUES (${name || cleanPhone}, ${cleanPhone}, ${sid}, ${normTags(tags)}, ${notes || ''}, ${appointment_at || null})
         RETURNING *`;
       res.json(rows[0]);
     } catch (e) {
@@ -262,6 +271,7 @@ app.put('/api/contacts/:id', requireLogin, async (req, res, next) => {
       if (req.body[k] !== undefined) {
         let v = req.body[k];
         if (k === 'phone') v = String(v).replace(/\D/g, '');
+        if (k === 'tags') v = normTags(v);
         if (k === 'appointment_at' && !v) v = null;
         vals.push(v);
         sets.push(`${k} = $${vals.length}`);
