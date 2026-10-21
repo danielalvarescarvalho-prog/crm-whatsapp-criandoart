@@ -520,6 +520,109 @@ app.post('/api/contacts/:id/messages', requireLogin, async (req, res, next) => {
 });
 
 // ============================================================
+// CENTRAL DE IAs — hub da Sol (Gemini via API + ponte com a Sol)
+// Interface em public/ias/index.html
+// ============================================================
+const SYSTEM_PROMPTS = {
+  pergunta:
+    'Você é um assistente útil e direto. Responda em português brasileiro, de forma clara e objetiva, sem rodeios.',
+  estrategia:
+    'Você é um estrategista de marketing sênior de uma agência brasileira (CriandoArt). Responda em pt-BR com recomendações práticas, diretas e acionáveis. Nada de conselhos genéricos: seja específico, priorize e indique o próximo passo.',
+  ideias:
+    'Você é um diretor criativo. Gere ideias ousadas e executáveis em pt-BR, organizadas em lista numerada com título curto e 1-2 linhas de explicação cada.',
+  escrever:
+    'Você é um redator publicitário brasileiro. Escreva textos afiados, sem clichês e sem cara de IA, em pt-BR.',
+  analisar:
+    'Você é um analista crítico. Responda em pt-BR com análise direta, apontando prós, contras e o que realmente importa. Sem enrolação.',
+};
+
+// POST /api/ask { prompt, model: 'flash'|'pro', task } — proxy do Gemini.
+// Pública (ferramenta privada do Daniel; a chave fica no servidor, nunca exposta).
+app.post('/api/ask', async (req, res, next) => {
+  try {
+    const { prompt, model, task } = req.body || {};
+    if (!prompt || !String(prompt).trim()) return res.status(400).json({ error: 'prompt obrigatório' });
+    const key = process.env.GEMINI_API_KEY || '';
+    if (!key) return res.status(503).json({ error: 'Gemini não configurado' });
+    const modelName = model === 'pro' ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
+    const system = SYSTEM_PROMPTS[task] || SYSTEM_PROMPTS.pergunta;
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-goog-api-key': key },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ parts: [{ text: String(prompt).slice(0, 12000) }] }],
+      }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) return res.status(r.status).json({ error: (data.error && data.error.message) || 'erro no Gemini' });
+    const parts = (((data.candidates || [])[0] || {}).content || {}).parts || [];
+    res.json({ ok: true, text: parts.map((p) => p.text || '').join(''), model: modelName });
+  } catch (e) { next(e); }
+});
+
+// Tabela das perguntas feitas à Sol na Central de IAs (idempotente).
+async function ensureHub() {
+  await sql`CREATE TABLE IF NOT EXISTS hub_questions (
+    id SERIAL PRIMARY KEY,
+    prompt TEXT NOT NULL,
+    task TEXT DEFAULT 'pergunta',
+    status TEXT DEFAULT 'pending',
+    sol_answer TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    answered_at TIMESTAMPTZ
+  )`;
+}
+const HUB_KEY = process.env.HUB_KEY || '';
+
+// POST /api/sol-work?action=ask { prompt, task } — Daniel pergunta à Sol (público).
+// POST /api/sol-work?action=answer { key, id, answer } — a Sol responde (protegido por HUB_KEY).
+app.post('/api/sol-work', async (req, res, next) => {
+  try {
+    const { action } = req.query || {};
+    await ensureHub();
+    if (action === 'ask') {
+      const { prompt, task } = req.body || {};
+      if (!prompt || !String(prompt).trim()) return res.status(400).json({ error: 'prompt obrigatório' });
+      const { rows } = await sql`INSERT INTO hub_questions (prompt, task)
+        VALUES (${String(prompt).slice(0, 8000)}, ${String(task || 'pergunta').slice(0, 40)})
+        RETURNING id`;
+      return res.json({ ok: true, id: rows[0].id });
+    }
+    if (action === 'answer') {
+      const key = req.query.key || (req.body || {}).key || '';
+      if (!HUB_KEY || key !== HUB_KEY) return res.status(403).json({ error: 'chave inválida' });
+      const { id, answer } = req.body || {};
+      if (!id || !answer) return res.status(400).json({ error: 'id e answer obrigatórios' });
+      await sql`UPDATE hub_questions SET sol_answer = ${String(answer)}, status = 'done', answered_at = NOW() WHERE id = ${Number(id)}`;
+      return res.json({ ok: true });
+    }
+    return res.status(400).json({ error: 'ação inválida' });
+  } catch (e) { next(e); }
+});
+
+// GET /api/sol-work?action=status&id= — consulta a resposta (público).
+// GET /api/sol-work?action=pending&key=HUB_KEY — lista pendentes p/ o plantão da Sol.
+app.get('/api/sol-work', async (req, res, next) => {
+  try {
+    const { action } = req.query || {};
+    await ensureHub();
+    if (action === 'status') {
+      const { rows } = await sql`SELECT id, status, sol_answer, answered_at FROM hub_questions WHERE id = ${Number(req.query.id)}`;
+      if (!rows[0]) return res.status(404).json({ error: 'não encontrada' });
+      return res.json(rows[0]);
+    }
+    if (action === 'pending') {
+      const key = req.query.key || '';
+      if (!HUB_KEY || key !== HUB_KEY) return res.status(403).json({ error: 'chave inválida' });
+      const { rows } = await sql`SELECT id, prompt, task, created_at FROM hub_questions WHERE status = 'pending' ORDER BY id ASC LIMIT 10`;
+      return res.json({ ok: true, pending: rows });
+    }
+    return res.status(400).json({ error: 'ação inválida' });
+  } catch (e) { next(e); }
+});
+
+// ============================================================
 // FRONTEND ESTÁTICO + SPA FALLBACK
 // (No deploy Vercel, o rewrite /(.*) -> /api/index manda tudo p/ cá;
 //  o express.static serve os arquivos de public/.)

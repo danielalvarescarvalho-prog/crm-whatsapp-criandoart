@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Central de IAs — CriandoArt</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --accent: #FF6A00; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f0f10; color: #f5f5f5; min-height: 100vh; padding: 24px 16px; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 20px; }
+  header h1 { font-size: 26px; margin-bottom: 6px; }
+  header h1 span { color: var(--accent); }
+  header p { color: #999; font-size: 14px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab { flex: 1; background: #1a1a1c; border: 1px solid #2c2c2e; color: #ccc; border-radius: 12px;
+    padding: 14px; font-size: 15px; cursor: pointer; text-align: center; }
+  .tab b { display: block; font-size: 16px; margin-bottom: 2px; }
+  .tab small { color: #888; font-size: 11px; }
+  .tab.on { border-color: var(--accent); color: #fff; }
+  .tab.on b { color: var(--accent); }
+  .pane { display: none; }
+  .pane.on { display: block; }
+  .ias { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+  .ia-card { background: #1a1a1c; border: 1px solid #2c2c2e; border-radius: 12px; padding: 12px; text-align: center; }
+  .ia-card b { display: block; font-size: 14px; margin-bottom: 4px; }
+  .ia-card small { color: #999; font-size: 11px; }
+  .ia-card .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+  .dot.g { background: #34d399; } .dot.r { background: #666; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .chip { background: #1a1a1c; border: 1px solid #2c2c2e; color: #ccc; border-radius: 16px;
+    padding: 7px 14px; font-size: 13px; cursor: pointer; }
+  .chip.on { border-color: var(--accent); color: var(--accent); }
+  .row { display: flex; gap: 10px; margin-bottom: 12px; }
+  select, textarea, button { font-size: 15px; }
+  select { background: #1a1a1c; border: 1px solid #2c2c2e; color: #fff; border-radius: 10px; padding: 12px; }
+  textarea { width: 100%; background: #1a1a1c; border: 1px solid #2c2c2e; color: #fff;
+    border-radius: 12px; padding: 14px; min-height: 110px; resize: vertical; outline: none; }
+  textarea:focus, select:focus { border-color: var(--accent); }
+  .ask-btn { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 12px;
+    padding: 14px; font-size: 16px; font-weight: 600; cursor: pointer; margin: 4px 0 18px; }
+  .ask-btn:disabled { opacity: .5; cursor: default; }
+  .ask-btn.sol { background: #7c3aed; }
+  .resp { background: #1a1a1c; border: 1px solid #2c2c2e; border-radius: 12px; padding: 18px;
+    min-height: 120px; white-space: pre-wrap; line-height: 1.6; font-size: 15px; }
+  .resp .meta { color: #999; font-size: 12px; margin-bottom: 10px; display: block; }
+  .resp .err { color: #f87171; }
+  .hist { margin-top: 22px; }
+  .hist h3 { font-size: 14px; color: #999; margin-bottom: 8px; font-weight: normal; }
+  .hist-item { background: #141415; border: 1px solid #262628; border-radius: 10px; padding: 10px 12px;
+    font-size: 13px; color: #bbb; margin-bottom: 6px; cursor: pointer; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  footer { text-align: center; color: #666; font-size: 12px; margin-top: 26px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Central de <span>IAs</span></h1>
+    <p>Pergunte uma vez — a melhor IA responde.</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab on" data-pane="gemini"><b>🤖 Gemini</b><small>resposta na hora</small></button>
+    <button class="tab" data-pane="sol"><b>☀️ Sol</b><small>eu respondo aqui</small></button>
+  </div>
+
+  <!-- GEMINI -->
+  <div class="pane on" id="pane-gemini">
+    <div class="ias">
+      <div class="ia-card"><b>Gemini 2.5</b><small><span class="dot g"></span>conectado via API</small></div>
+      <div class="ia-card"><b>ChatGPT</b><small><span class="dot r"></span>em breve</small></div>
+      <div class="ia-card"><b>Sol</b><small><span class="dot g"></span>aba ao lado →</small></div>
+    </div>
+    <div class="chips" id="tasks">
+      <button class="chip on" data-t="pergunta">Pergunta livre</button>
+      <button class="chip" data-t="estrategia">Estratégia</button>
+      <button class="chip" data-t="ideias">Ideias</button>
+      <button class="chip" data-t="escrever">Escrever texto</button>
+      <button class="chip" data-t="analisar">Analisar</button>
+    </div>
+    <div class="row">
+      <select id="model" style="flex:1">
+        <option value="flash">Gemini 2.5 Flash — rápido</option>
+        <option value="pro">Gemini 2.5 Pro — mais profundo</option>
+      </select>
+    </div>
+    <textarea id="prompt" placeholder="O que você quer saber ou criar?"></textarea>
+    <button class="ask-btn" id="ask">Perguntar ao Gemini</button>
+    <div class="resp" id="resp"><span class="meta">A resposta aparece aqui.</span></div>
+    <div class="hist"><h3>Histórico</h3><div id="hist"></div></div>
+  </div>
+
+  <!-- SOL -->
+  <div class="pane" id="pane-sol">
+    <div class="chips" id="tasks-sol">
+      <button class="chip on" data-t="pergunta">Pergunta livre</button>
+      <button class="chip" data-t="estrategia">Estratégia</button>
+      <button class="chip" data-t="ideias">Ideias</button>
+      <button class="chip" data-t="escrever">Escrever texto</button>
+      <button class="chip" data-t="analisar">Analisar</button>
+    </div>
+    <textarea id="prompt-sol" placeholder="Pergunte pra mim — eu respondo aqui mesmo em alguns minutos ☀️"></textarea>
+    <button class="ask-btn sol" id="ask-sol">Perguntar à Sol</button>
+    <div class="resp" id="resp-sol"><span class="meta">Eu mesma respondo aqui. Checo as perguntas de 5 em 5 minutos.</span></div>
+  </div>
+
+  <footer>Central de IAs da CriandoArt — eu roteio, elas respondem.</footer>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let task = 'pergunta', taskSol = 'pergunta';
+
+// Abas
+document.querySelectorAll('.tab').forEach((t) =>
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((x) => x.classList.remove('on'));
+    document.querySelectorAll('.pane').forEach((x) => x.classList.remove('on'));
+    t.classList.add('on');
+    $('#pane-' + t.dataset.pane).classList.add('on');
+  }));
+
+// Chips (Gemini)
+$('#tasks').querySelectorAll('.chip').forEach((c) =>
+  c.addEventListener('click', () => {
+    $('#tasks').querySelectorAll('.chip').forEach((x) => x.classList.remove('on'));
+    c.classList.add('on'); task = c.dataset.t;
+  }));
+// Chips (Sol)
+$('#tasks-sol').querySelectorAll('.chip').forEach((c) =>
+  c.addEventListener('click', () => {
+    $('#tasks-sol').querySelectorAll('.chip').forEach((x) => x.classList.remove('on'));
+    c.classList.add('on'); taskSol = c.dataset.t;
+  }));
+
+// Histórico (Gemini)
+function getHist() { try { return JSON.parse(localStorage.getItem('ias_hist') || '[]'); } catch { return []; } }
+function renderHist() {
+  const h = getHist();
+  $('#hist').innerHTML = h.length ? h.map((x, i) =>
+    `<div class="hist-item" data-i="${i}">🤖 ${x.p}</div>`).join('')
+    : '<p style="color:#555;font-size:13px">Nada por aqui ainda.</p>';
+  $('#hist').querySelectorAll('.hist-item').forEach((el) =>
+    el.addEventListener('click', () => { $('#prompt').value = getHist()[Number(el.dataset.i)].p; }));
+}
+renderHist();
+
+// Gemini
+$('#ask').addEventListener('click', async () => {
+  const prompt = $('#prompt').value.trim();
+  if (!prompt) return;
+  const btn = $('#ask');
+  btn.disabled = true; btn.textContent = 'Pensando...';
+  $('#resp').innerHTML = '<span class="meta">Consultando o Gemini...</span>';
+  try {
+    const r = await fetch('/api/ask', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, model: $('#model').value, task }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'erro');
+    const label = $('#model').value === 'pro' ? 'Gemini 2.5 Pro' : 'Gemini 2.5 Flash';
+    $('#resp').innerHTML = `<span class="meta">🤖 ${label}</span>` +
+      d.text.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const h = getHist();
+    h.unshift({ p: prompt.slice(0, 120) });
+    localStorage.setItem('ias_hist', JSON.stringify(h.slice(0, 30)));
+    renderHist();
+  } catch (e) {
+    $('#resp').innerHTML = `<span class="err">Falhou: ${e.message}</span>`;
+  }
+  btn.disabled = false; btn.textContent = 'Perguntar ao Gemini';
+});
+
+// Sol (assíncrono)
+let solTimer = null;
+$('#ask-sol').addEventListener('click', async () => {
+  const prompt = $('#prompt-sol').value.trim();
+  if (!prompt) return;
+  const btn = $('#ask-sol');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    const r = await fetch('/api/sol-work?action=ask', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, task: taskSol }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'erro');
+    $('#resp-sol').innerHTML = '<span class="meta">☀️ Recebi! Te respondo aqui em alguns minutos...</span>';
+    pollSol(d.id);
+  } catch (e) {
+    $('#resp-sol').innerHTML = `<span class="err">Falhou: ${e.message}</span>`;
+    btn.disabled = false; btn.textContent = 'Perguntar à Sol';
+  }
+});
+async function pollSol(id) {
+  if (solTimer) clearInterval(solTimer);
+  solTimer = setInterval(async () => {
+    try {
+      const r = await fetch('/api/sol-work?action=status&id=' + id);
+      const d = await r.json();
+      if (d.status === 'done') {
+        clearInterval(solTimer);
+        $('#resp-sol').innerHTML = '<span class="meta">☀️ Sol respondeu</span>' +
+          String(d.sol_answer).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        const btn = $('#ask-sol');
+        btn.disabled = false; btn.textContent = 'Perguntar à Sol';
+      }
+    } catch {}
+  }, 10000);
+}
+</script>
+</body>
+</html>
