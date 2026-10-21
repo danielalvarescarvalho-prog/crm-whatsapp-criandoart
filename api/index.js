@@ -252,7 +252,11 @@ app.post('/api/contacts', requireLogin, async (req, res, next) => {
 });
 app.put('/api/contacts/:id', requireLogin, async (req, res, next) => {
   try {
-    const allowed = ['name', 'phone', 'stage_id', 'tags', 'notes', 'appointment_at'];
+    const allowed = ['name', 'phone', 'stage_id', 'tags', 'notes', 'appointment_at', 'lost_reason', 'lost_from'];
+    // Etapa atual (para detectar saída de "Perdido").
+    const { rows: curRows } = await sql`SELECT stage_id FROM contacts WHERE id = ${req.params.id}`;
+    const curStageId = curRows[0] ? curRows[0].stage_id : null;
+    const perdidoId = await stageIdByName('Perdido');
     const sets = [], vals = [];
     for (const k of allowed) {
       if (req.body[k] !== undefined) {
@@ -267,6 +271,11 @@ app.put('/api/contacts/:id', requireLogin, async (req, res, next) => {
     sets.push('updated_at = NOW()');
     vals.push(req.params.id);
     await sql.query(`UPDATE contacts SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals);
+    // Saiu de "Perdido" → limpa motivo/etapa de origem.
+    const newStageId = req.body.stage_id !== undefined ? Number(req.body.stage_id) : curStageId;
+    if (perdidoId && curStageId === perdidoId && newStageId !== perdidoId) {
+      await sql`UPDATE contacts SET lost_reason = '', lost_from = '' WHERE id = ${req.params.id}`;
+    }
     const { rows } = await sql`SELECT * FROM contacts WHERE id = ${req.params.id}`;
     res.json(await contactWithLast(rows[0]));
   } catch (e) { next(e); }
@@ -359,7 +368,35 @@ app.get('/api/dashboard', requireLogin, async (req, res, next) => {
         )
       ORDER BY ultima_msg ASC`;
 
-    res.json({ por_estagio, tempo_medio_primeira_resposta_min, followups_pendentes });
+    // Funil ordenado + perdas (onde e por que perdemos).
+    const { rows: funilRows } = await sql`
+      SELECT s.name AS stage, COUNT(c.id) AS total
+      FROM stages s LEFT JOIN contacts c ON c.stage_id = s.id
+      GROUP BY s.id, s.name, s.position ORDER BY s.position`;
+    const totalLeads = funilRows.reduce((a, r) => a + Number(r.total), 0);
+    const funil = funilRows.map((r) => ({
+      stage: r.stage,
+      total: Number(r.total),
+      pct: totalLeads ? Math.round((Number(r.total) / totalLeads) * 100) : 0,
+    }));
+    const { rows: motivos } = await sql`
+      SELECT lost_reason AS reason, COUNT(*) AS total FROM contacts
+      WHERE lost_reason <> '' GROUP BY lost_reason ORDER BY total DESC`;
+    const { rows: porEtapa } = await sql`
+      SELECT lost_from AS from_stage, COUNT(*) AS total FROM contacts
+      WHERE lost_from <> '' GROUP BY lost_from`;
+    const perdidos = Number((por_estagio['Perdido'] || 0));
+    const faltaram = Number((por_estagio['Faltou'] || 0));
+    const compareceram = Number((por_estagio['Compareceu'] || 0));
+    const perdas = {
+      total: perdidos + faltaram,
+      taxa_perda_pct: totalLeads ? Math.round(((perdidos + faltaram) / totalLeads) * 100) : 0,
+      taxa_conversao_pct: totalLeads ? Math.round((compareceram / totalLeads) * 100) : 0,
+      por_motivo: motivos.map((r) => ({ reason: r.reason, total: Number(r.total) })),
+      por_etapa: porEtapa.map((r) => ({ from_stage: r.from_stage, total: Number(r.total) })),
+    };
+
+    res.json({ por_estagio, tempo_medio_primeira_resposta_min, followups_pendentes, funil, perdas });
   } catch (e) { next(e); }
 });
 

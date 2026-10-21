@@ -155,6 +155,14 @@ textarea { resize: vertical; }
 }
 .tpl-chip:hover { border-color: var(--accent); color: var(--accent); }
 
+/* ---------- Funil de vendas ---------- */
+.funnel-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+.funnel-label { width: 140px; font-size: 13px; color: var(--muted); flex-shrink: 0; }
+.funnel-bar-wrap { flex: 1; background: var(--bg3); border-radius: 6px; height: 14px; overflow: hidden; }
+.funnel-bar { height: 100%; background: var(--accent); border-radius: 6px; }
+.funnel-bar.loss { background: #e5484d; }
+.funnel-num { width: 76px; text-align: right; font-size: 13px; flex-shrink: 0; }
+#lost-reason-sel { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--fg); border-radius: 8px; padding: 10px; font-size: 14px; }
 /* ---------- Dashboard ---------- */
 .dash-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
 .dash-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
@@ -280,6 +288,16 @@ textarea { resize: vertical; }
     <section id="view-dashboard" class="view hidden">
       <div class="view-head"><h2>Dashboard</h2><button id="btn-refresh-dash" class="btn">↻ Atualizar</button></div>
       <div id="dash-stages" class="dash-cards"></div>
+      <div class="dash-row">
+        <div class="dash-card grow">
+          <h3>📊 Funil de vendas</h3>
+          <div id="dash-funnel"></div>
+        </div>
+        <div class="dash-card grow">
+          <h3>📉 Onde e por que perdemos</h3>
+          <div id="dash-losses"></div>
+        </div>
+      </div>
       <div class="dash-row">
         <div class="dash-card">
           <h3>⏱ Tempo médio da 1ª resposta</h3>
@@ -462,15 +480,37 @@ async function boot() {
 
 // ---------- Modal genérico ----------
 let modalOk = null;
+let modalOnClose = null;
 function openModal(title, bodyHtml, onOk) {
   $('#modal-title').textContent = title;
   $('#modal-body').innerHTML = bodyHtml;
   $('#modal').classList.remove('hidden');
   modalOk = onOk;
 }
-function closeModal() { $('#modal').classList.add('hidden'); modalOk = null; }
+function closeModal() { $('#modal').classList.add('hidden'); modalOk = null;
+  if (modalOnClose) { const f = modalOnClose; modalOnClose = null; f(); } }
 $('#modal-cancel').addEventListener('click', closeModal);
 $('#modal-ok').addEventListener('click', async () => { if (modalOk) await modalOk().catch(() => {}); });
+
+// ---------- Motivos de perda ----------
+const LOST_REASONS = ['Sem resposta', 'Preço', 'Escolheu concorrente', 'Sem necessidade no momento', 'Contato inválido', 'Outro'];
+const stageName = (id) => (state.stages.find((s) => s.id === Number(id)) || {}).name || '';
+const perdidoId = () => { const s = state.stages.find((s) => s.name === 'Perdido'); return s ? s.id : null; };
+function askLostReason(fromStage) {
+  return new Promise((resolve) => {
+    modalOnClose = () => resolve(null);
+    const opts = LOST_REASONS.map((r) => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
+    openModal('Motivo da perda', `
+      <p class="muted" style="margin-bottom:10px">O lead estava em <b>${esc(fromStage || '—')}</b>. Por que foi perdido?</p>
+      <label>Motivo<select id="lost-reason-sel">${opts}</select></label>
+    `, async () => {
+      const v = $('#lost-reason-sel').value;
+      modalOnClose = null;
+      closeModal();
+      resolve(v);
+    });
+  });
+}
 
 // ---------- Utilidades ----------
 function fmtDateTime(iso) {
@@ -528,7 +568,16 @@ async function loadKanban() {
       e.preventDefault(); col.classList.remove('dragover');
       const id = e.dataTransfer.getData('text/plain');
       const stageId = Number(col.dataset.stageId);
-      await api('PUT', `/api/contacts/${id}`, { stage_id: stageId });
+      const pid = perdidoId();
+      const cur = state.contacts.find((x) => x.id === Number(id));
+      const oldStageId = cur ? cur.stage_id : null;
+      if (pid && stageId === pid && oldStageId !== pid) {
+        const reason = await askLostReason(stageName(oldStageId));
+        if (!reason) { loadKanban(); return; }
+        await api('PUT', `/api/contacts/${id}`, { stage_id: stageId, lost_reason: reason, lost_from: stageName(oldStageId) });
+      } else {
+        await api('PUT', `/api/contacts/${id}`, { stage_id: stageId });
+      }
       loadKanban();
     });
     board.appendChild(col);
@@ -582,13 +631,24 @@ async function refreshPanelThread() {
 }
 $('#panel-save').addEventListener('click', async () => {
   const appt = $('#panel-appointment').value;
-  await api('PUT', `/api/contacts/${state.activeContactId}`, {
+  const newStageId = Number($('#panel-stage').value);
+  const cur = state.contacts.find((x) => x.id === state.activeContactId);
+  const oldStageId = cur ? cur.stage_id : null;
+  const pid = perdidoId();
+  const payload = {
     name: $('#panel-contact-name').value,
-    stage_id: Number($('#panel-stage').value),
+    stage_id: newStageId,
     tags: $('#panel-tags').value,
     notes: $('#panel-notes').value,
     appointment_at: appt ? appt.replace('T', ' ') + ':00' : null,
-  });
+  };
+  if (pid && newStageId === pid && oldStageId !== pid) {
+    const reason = await askLostReason(stageName(oldStageId));
+    if (!reason) return;
+    payload.lost_reason = reason;
+    payload.lost_from = stageName(oldStageId);
+  }
+  await api('PUT', `/api/contacts/${state.activeContactId}`, payload);
   loadKanban();
   alert('Dados salvos!');
 });
@@ -720,6 +780,28 @@ async function loadDashboard() {
         <button class="btn" data-fup="${f.id}">Abrir</button>
       </div>`).join('')
     : '<p class="muted">Nenhum follow-up pendente 🎉</p>';
+  // Funil de vendas
+  const maxF = Math.max(1, ...d.funil.map((f) => f.total));
+  $('#dash-funnel').innerHTML = d.funil.map((f) => `
+    <div class="funnel-row">
+      <span class="funnel-label">${esc(f.stage)}</span>
+      <div class="funnel-bar-wrap"><div class="funnel-bar" style="width:${Math.round((f.total / maxF) * 100)}%"></div></div>
+      <span class="funnel-num">${f.total} <span class="muted-sm">${f.pct}%</span></span>
+    </div>`).join('')
+    + `<p class="muted-sm" style="margin-top:10px">✅ Conversão (compareceu): <b>${d.perdas.taxa_conversao_pct}%</b> &nbsp;·&nbsp; ❌ Perda: <b>${d.perdas.taxa_perda_pct}%</b></p>`;
+  // Onde e por que perdemos
+  const L = d.perdas;
+  $('#dash-losses').innerHTML = L.total === 0
+    ? '<p class="muted">Nenhuma perda registrada 🎉</p>'
+    : `<p style="margin-bottom:8px"><b>${L.total}</b> lead(s) perdido(s)</p>`
+    + (L.por_etapa.length ? `<p class="muted-sm">Onde estavam quando perdemos:</p>` + L.por_etapa.map((e) => `
+      <div class="funnel-row"><span class="funnel-label">${esc(e.from_stage)}</span>
+      <div class="funnel-bar-wrap"><div class="funnel-bar loss" style="width:${Math.round((e.total / L.total) * 100)}%"></div></div>
+      <span class="funnel-num">${e.total}</span></div>`).join('') : '')
+    + (L.por_motivo.length ? `<p class="muted-sm" style="margin-top:8px">Por que perdemos:</p>` + L.por_motivo.map((m) => `
+      <div class="funnel-row"><span class="funnel-label">${esc(m.reason)}</span>
+      <div class="funnel-bar-wrap"><div class="funnel-bar loss" style="width:${Math.round((m.total / L.total) * 100)}%"></div></div>
+      <span class="funnel-num">${m.total}</span></div>`).join('') : '');
   $('#dash-followups').querySelectorAll('[data-fup]').forEach((b) =>
     b.addEventListener('click', async () => {
       document.querySelector('[data-view="kanban"]').click();

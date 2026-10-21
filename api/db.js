@@ -59,6 +59,12 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS idx_contacts_stage ON contacts(stage_id)`,
 ];
 
+// Migrações para tabelas já existentes (idempotentes).
+const MIGRATIONS = [
+  `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lost_reason TEXT DEFAULT ''`,
+  `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS lost_from TEXT DEFAULT ''`,
+];
+
 async function seed() {
   const { rows: u } = await sql`SELECT COUNT(*) AS c FROM users`;
   if (Number(u[0].c) === 0) {
@@ -91,6 +97,7 @@ function ensureDb() {
   if (!initPromise) {
     initPromise = (async () => {
       for (const stmt of SCHEMA) await sql.query(stmt);
+      for (const stmt of MIGRATIONS) await sql.query(stmt);
       await seed();
     })().catch((e) => {
       initPromise = null; // permite nova tentativa na próxima requisição
