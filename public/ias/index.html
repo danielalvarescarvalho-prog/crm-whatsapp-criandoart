@@ -65,6 +65,7 @@
   <div class="tabs">
     <button class="tab on" data-pane="gemini"><b>🤖 Gemini</b><small>resposta na hora</small></button>
     <button class="tab" data-pane="sol"><b>☀️ Sol</b><small>eu respondo aqui</small></button>
+    <button class="tab" data-pane="rh"><b>💼 Recrutamento</b><small>processos seletivos</small></button>
   </div>
 
   <!-- GEMINI -->
@@ -105,6 +106,13 @@
     <textarea id="prompt-sol" placeholder="Pergunte pra mim — eu respondo aqui mesmo em alguns minutos ☀️"></textarea>
     <button class="ask-btn sol" id="ask-sol">Perguntar à Sol</button>
     <div class="resp" id="resp-sol"><span class="meta">Eu mesma respondo aqui. Checo as perguntas de 5 em 5 minutos.</span></div>
+  </div>
+
+  <!-- RECRUTAMENTO -->
+  <div class="pane" id="pane-rh">
+    <textarea id="prompt-rh" placeholder="Ex: preciso contratar um designer júnior — monta a vaga e o que perguntar na entrevista"></textarea>
+    <button class="ask-btn" id="ask-rh">Perguntar sobre recrutamento</button>
+    <div class="resp" id="resp-rh"><span class="meta">Respostas instantâneas, já pensando na realidade da CriandoArt: vaga, entrevista, teste prático, onboarding.</span></div>
   </div>
 
   <footer>Central de IAs da CriandoArt — eu roteio, elas respondem.</footer>
@@ -212,6 +220,36 @@ async function pollSol(id) {
     } catch {}
   }, 10000);
 }
+
+// Recrutamento (instantâneo, com contexto da CriandoArt)
+const RH_CONTEXT = 'Você é um especialista em recrutamento e seleção para agências de marketing digital. ' +
+'Contexto: a CriandoArt é uma agência brasileira de 2 sócios (Daniel e Elaine), sem funcionários. ' +
+'Atua com tráfego pago (Meta/Google/TikTok Ads), social media e produção de criativos para PMEs. ' +
+'Capacidade ~224h/mês com ~70% de utilização; o gargalo é produção criativa. ' +
+'A primeira contratação prevista é um(a) designer/videomaker. ' +
+'Responda em pt-BR, direto e prático, pensando na realidade de uma agência pequena em crescimento. ' +
+'Ajude com: descrições de vaga, roteiros de entrevista, critérios de avaliação, testes práticos, onboarding, regimes de contratação.\n\n' +
+'Pergunta: ';
+$('#ask-rh').addEventListener('click', async () => {
+  const prompt = $('#prompt-rh').value.trim();
+  if (!prompt) return;
+  const btn = $('#ask-rh');
+  btn.disabled = true; btn.textContent = 'Pensando...';
+  $('#resp-rh').innerHTML = '<span class="meta">Consultando...</span>';
+  try {
+    const r = await fetch('/api/ask', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: RH_CONTEXT + prompt, model: 'flash', task: 'pergunta' }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'erro');
+    $('#resp-rh').innerHTML = '<span class="meta">💼 Recrutamento</span>' +
+      d.text.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  } catch (e) {
+    $('#resp-rh').innerHTML = `<span class="err">Falhou: ${e.message}</span>`;
+  }
+  btn.disabled = false; btn.textContent = 'Perguntar sobre recrutamento';
+});
 </script>
 </body>
 </html>
